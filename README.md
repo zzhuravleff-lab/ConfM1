@@ -165,6 +165,71 @@ $HOME
 - `scripts/startup_stage4.txt` — полный прогон всех команд.
 - `.bat`-скрипты: `run_stage4_full.bat`, `run_stage4_history.bat`.
 
+### Этап 5. Дополнительные команды
+
+Реализовано:
+
+- Команда `touch` — создание пустого файла.
+- Команда `rmdir` — удаление пустой директории.
+- Все изменения — только в памяти. XML-источник
+  не модифицируется.
+- Отдельный VFS `vfs/stage5.xml` для тестирования.
+- Три стартовых скрипта:
+  `stage5_ok.txt`, `stage5_err_touch.txt`,
+  `stage5_err_rmdir.txt`.
+
+## Команды Этапа 5
+
+### `touch <path>`
+
+Создать пустой файл.
+
+- Если файл уже существует — ничего не делает.
+- Если путь ведёт в несуществующую директорию —
+  ошибка `touch: cannot touch '...': No such file or directory`.
+- Если путь — директория — ошибка
+  `touch: cannot touch '...': Not a directory`.
+- Ошибки: `touch: missing file operand`,
+  `touch: too many arguments`.
+
+Примеры:
+
+```
+my_vfs$ touch new.txt
+my_vfs$ ls /
+empty home motd new.txt
+```
+
+### `rmdir <path>`
+
+Удалить пустую директорию.
+
+- Если директория не пустая — ошибка
+  `rmdir: failed to remove '...': Directory not empty`.
+- Если директории нет — ошибка
+  `rmdir: failed to remove '...': No such file or directory`.
+- Если путь — файл — ошибка
+  `rmdir: failed to remove '...': Not a directory`.
+- Попытка удалить корень — ошибка
+  `rmdir: failed to remove '/': Cannot remove root`.
+- Ошибки: `rmdir: missing operand`,
+  `rmdir: too many arguments`.
+
+Примеры:
+
+```
+my_vfs$ rmdir /empty
+my_vfs$ ls /
+home motd
+```
+
+## Модификации только в памяти
+
+Все команды `touch` и `rmdir` изменяют только
+объект `VirtualFileSystem` в памяти.
+Исходный XML-файл **не модифицируется**.
+После выхода из эмулятора изменения теряются.
+
 ## Требования
 
 - Python 3.10 или выше.
@@ -294,3 +359,4 @@ ls: arguments = []
 | `run_vfs_and_script.bat` | 3 | VFS + стартовый скрипт (полный прогон). |
 | `run_stage4_full.bat` | 4 | Полный прогон команд Этапа 4 (`ls`, `cd`, `echo`, `history`). |
 | `run_stage4_history.bat` | 4 | Интерактивная проверка `history`. |
+| `run_stage5_full.bat` | 5 | Полный прогон `touch` и `rmdir` (успех + 2 ошибки). |

@@ -1,0 +1,8 @@
+ls /
+touch new.txt
+ls /
+touch /home/new.txt
+ls /home
+rmdir /empty
+ls /
+exit

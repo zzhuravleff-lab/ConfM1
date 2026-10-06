@@ -156,6 +156,99 @@ class TestShellClear(unittest.TestCase):
             self.shell.execute("clear")
             mock_sys.assert_not_called()
 
+class TestShellTouch(unittest.TestCase):
+    """Проверяет команду touch."""
+
+    def setUp(self) -> None:
+        self.shell = Shell(vfs=_make_vfs())
+
+    def _run(self, line: str) -> str:
+        out = StringIO()
+        with patch("sys.stdout", out):
+            self.shell.execute(line)
+        return out.getvalue().strip()
+
+    def test_touch_create_in_root(self) -> None:
+        self._run("touch new.txt")
+        node = self.shell.vfs.resolve("/new.txt")
+        self.assertIsNotNone(node)
+        self.assertFalse(node.is_dir)
+        self.assertEqual(node.content, "")
+
+    def test_touch_create_in_subdir(self) -> None:
+        self._run("touch /home/new.txt")
+        node = self.shell.vfs.resolve("/home/new.txt")
+        self.assertIsNotNone(node)
+
+    def test_touch_existing_is_noop(self) -> None:
+        self._run("touch /home/readme.txt")
+        node = self.shell.vfs.resolve("/home/readme.txt")
+        self.assertEqual(node.content, "hello")
+
+    def test_touch_missing_dir(self) -> None:
+        self.assertIn(
+            "No such file or directory",
+            self._run("touch /missing/new.txt"),
+        )
+
+    def test_touch_directory(self) -> None:
+        self.assertIn("Is a directory", self._run("touch /home"))
+
+    def test_touch_no_args(self) -> None:
+        self.assertIn("missing file operand", self._run("touch"))
+
+    def test_touch_too_many_args(self) -> None:
+        self.assertIn("too many", self._run("touch a b"))
+
+class TestShellRmdir(unittest.TestCase):
+    """Проверяет команду rmdir."""
+
+    def setUp(self) -> None:
+        self.shell = Shell(vfs=_make_vfs())
+
+    def _run(self, line: str) -> str:
+        out = StringIO()
+        with patch("sys.stdout", out):
+            self.shell.execute(line)
+        return out.getvalue().strip()
+
+    def test_rmdir_empty(self) -> None:
+        self._run("touch /home/tmp")
+        del self.shell.vfs.root.children["home"].children["tmp"]
+        self.shell.vfs.root.children["home"].children[
+            "empty"
+        ] = VfsNode(name="empty", is_dir=True)
+        self._run("rmdir /home/empty")
+        self.assertIsNone(
+            self.shell.vfs.resolve("/home/empty")
+        )
+
+    def test_rmdir_not_empty(self) -> None:
+        self.assertIn(
+            "Directory not empty",
+            self._run("rmdir /home"),
+        )
+
+    def test_rmdir_missing(self) -> None:
+        self.assertIn(
+            "No such file or directory",
+            self._run("rmdir /nope"),
+        )
+
+    def test_rmdir_file(self) -> None:
+        self.assertIn(
+            "Not a directory",
+            self._run("rmdir /home/readme.txt"),
+        )
+
+    def test_rmdir_root(self) -> None:
+        self.assertIn("Cannot remove root", self._run("rmdir /"))
+
+    def test_rmdir_no_args(self) -> None:
+        self.assertIn("missing operand", self._run("rmdir"))
+
+    def test_rmdir_too_many_args(self) -> None:
+        self.assertIn("too many", self._run("rmdir a b"))
 
 if __name__ == "__main__":
     unittest.main()

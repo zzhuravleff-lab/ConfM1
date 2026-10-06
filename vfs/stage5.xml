@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vfs name="stage5">
+  <file name="motd">Stage 5 VFS for touch/rmdir tests</file>
+  <dir name="empty"/>
+  <dir name="home">
+    <file name="readme.txt">hello</file>
+  </dir>
+</vfs>

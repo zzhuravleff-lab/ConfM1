@@ -9,7 +9,7 @@ import os
 import sys
 from typing import List, Optional
 
-from src.vfs import VirtualFileSystem, empty_vfs
+from src.vfs import VirtualFileSystem, VfsNode, empty_vfs
 
 EXIT_CODE_OK = 0
 PROMPT_TEMPLATE = "{vfs}$ "
@@ -51,13 +51,7 @@ class Shell:
 
     def execute(self, line: str, echo: bool = False) -> bool:
         """Выполнить одну строку.
-
-        Args:
-            line: Строка ввода.
-            echo: Печатать ли строку с приглашением.
-
-        Returns:
-            True при успехе, False при ошибке.
+        ...
         """
         if echo:
             print(f"{self.prompt}{line}")
@@ -81,63 +75,73 @@ class Shell:
         self.history.append(line)
 
         try:
-            handler(args)
+            result = handler(args)
         except SystemExit:
             raise
         except Exception as exc:
             print(f"Execution error: {exc}")
             return False
 
+        if result is False:
+            return False
         return True
 
     def _get_handler(self, cmd: str):
         """Вернуть метод-обработчик по имени команды."""
         return getattr(self, f"cmd_{cmd}", None)
 
-    def cmd_ls(self, args: List[str]) -> None:
+    def cmd_ls(self, args: List[str]) -> bool:
         """Реализация команды ls.
 
         Args:
             args: Список аргументов.
+
+        Returns:
+            True при успехе, False при ошибке.
         """
         if len(args) > 1:
             print("ls: too many arguments")
-            return
+            return False
 
         target = args[0] if args else self.cwd
         node = self.vfs.resolve_path(self.cwd, target)
         if node is None:
             print(f"ls: cannot access '{target}': "
                   f"No such file or directory")
-            return
+            return False
 
         if not node.is_dir:
             print(node.name)
-            return
+            return True
 
         names = node.list_children()
         print(" ".join(names))
+        return True
 
-    def cmd_cd(self, args: List[str]) -> None:
+    def cmd_cd(self, args: List[str]) -> bool:
         """Реализация команды cd.
 
         Args:
             args: Список аргументов.
+
+        Returns:
+            True при успехе, False при ошибке.
         """
         if len(args) > 1:
             print("cd: too many arguments")
-            return
+            return False
 
         target = args[0] if args else "/"
         node = self.vfs.resolve_path(self.cwd, target)
         if node is None:
             print(f"cd: no such directory: {target}")
-            return
+            return False
         if not node.is_dir:
             print(f"cd: not a directory: {target}")
-            return
+            return False
 
         self.cwd = self._normalize_cwd(target)
+        return True
 
     def _normalize_cwd(self, target: str) -> str:
         """Нормализовать путь для сохранения в cwd."""
@@ -190,6 +194,142 @@ class Shell:
             return
         for i, cmd in enumerate(self.history, start=1):
             print(f"{i:>{HISTORY_WIDTH}}  {cmd}")
+
+    def cmd_touch(self, args: List[str]) -> bool:
+        """Создать пустой файл.
+
+        Если файл уже существует — ничего не делает.
+        Если путь ведёт в существующую директорию —
+        ошибка.
+
+        Args:
+            args: Список аргументов.
+
+        Returns:
+            True при успехе, False при ошибке.
+        """
+        if not args:
+            print("touch: missing file operand")
+            return False
+        if len(args) > 1:
+            print("touch: too many arguments")
+            return False
+
+        target = args[0]
+        parent, name = self._split_path(target)
+        if parent is None:
+            print(f"touch: cannot touch '{target}': Invalid path")
+            return False
+
+        parent_node = self.vfs.resolve_path(self.cwd, parent)
+        if parent_node is None:
+            print(f"touch: cannot touch '{target}': "
+                  f"No such file or directory")
+            return False
+        if not parent_node.is_dir:
+            print(f"touch: cannot touch '{target}': "
+                  f"Not a directory")
+            return False
+
+        existing = parent_node.get_child(name)
+        if existing is not None:
+            if existing.is_dir:
+                print(f"touch: cannot touch '{target}': "
+                      f"Is a directory")
+                return False
+            return True
+
+        parent_node.children[name] = VfsNode(
+            name=name, is_dir=False, content=""
+        )
+        return True
+
+    def cmd_rmdir(self, args: List[str]) -> bool:
+        """Удалить пустую директорию.
+
+        Args:
+            args: Список аргументов.
+
+        Returns:
+            True при успехе, False при ошибке.
+        """
+        if not args:
+            print("rmdir: missing operand")
+            return False
+        if len(args) > 1:
+            print("rmdir: too many arguments")
+            return False
+
+        target = args[0]
+        parent, name = self._split_path(target)
+        if parent is None or not name:
+            print(f"rmdir: failed to remove '{target}': "
+                  f"Cannot remove root")
+            return False
+
+        parent_node = self.vfs.resolve_path(self.cwd, parent)
+        if parent_node is None or not parent_node.is_dir:
+            print(f"rmdir: failed to remove '{target}': "
+                  f"No such file or directory")
+            return False
+
+        node = parent_node.get_child(name)
+        if node is None:
+            print(f"rmdir: failed to remove '{target}': "
+                  f"No such file or directory")
+            return False
+        if not node.is_dir:
+            print(f"rmdir: failed to remove '{target}': "
+                  f"Not a directory")
+            return False
+        if node.children:
+            print(f"rmdir: failed to remove '{target}': "
+                  f"Directory not empty")
+            return False
+
+        del parent_node.children[name]
+        return True
+
+    def _split_path(self, path: str) -> tuple:
+        """Разделить путь на родителя и последний компонент.
+
+        Args:
+            path: Путь.
+
+        Returns:
+            Кортеж (родительский_путь, имя) или (None, None),
+            если путь пустой или невалидный.
+        """
+        if not path:
+            return None, None
+
+        if path.startswith("/"):
+            parts = [p for p in path.split("/") if p]
+            if not parts:
+                return None, None
+            normalized: List[str] = []
+        else:
+            base = [p for p in self.cwd.split("/") if p]
+            parts = base + [p for p in path.split("/") if p]
+            normalized = base
+
+        resolved: List[str] = []
+        for part in parts:
+            if part == ".":
+                continue
+            if part == "..":
+                if resolved:
+                    resolved.pop()
+                continue
+            resolved.append(part)
+
+        if not resolved:
+            return None, None
+
+        name = resolved[-1]
+        parent_parts = resolved[:-1]
+        parent = "/" + "/".join(parent_parts) if parent_parts else "/"
+        return parent, name
 
     def cmd_exit(self, args: List[str]) -> None:
         """Реализация команды exit.
