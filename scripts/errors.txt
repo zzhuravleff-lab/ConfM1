@@ -1,0 +1,4 @@
+ls
+unknowncmd
+ls a b c
+exit

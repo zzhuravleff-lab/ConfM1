@@ -1,0 +1,5 @@
+cd "my folder"
+cd 'another folder'
+ls "a b" 'c d'
+ls "unbalanced
+exit
