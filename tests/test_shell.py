@@ -1,5 +1,7 @@
-"""Тесты оболочки Shell."""
-"""python -m unittest discover -s tests"""
+"""
+    Тесты оболочки Shell.
+    python -m unittest discover -s tests
+"""
 
 import unittest
 from io import StringIO

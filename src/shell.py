@@ -195,19 +195,20 @@ class Shell:
         for i, cmd in enumerate(self.history, start=1):
             print(f"{i:>{HISTORY_WIDTH}}  {cmd}")
 
+    """Создать пустой файл.
+
+            Если файл уже существует — ничего не делает.
+            Если путь ведёт в существующую директорию —
+            ошибка.
+
+            Args:
+                args: Список аргументов.
+
+            Returns:
+                True при успехе, False при ошибке.
+            """
     def cmd_touch(self, args: List[str]) -> bool:
-        """Создать пустой файл.
 
-        Если файл уже существует — ничего не делает.
-        Если путь ведёт в существующую директорию —
-        ошибка.
-
-        Args:
-            args: Список аргументов.
-
-        Returns:
-            True при успехе, False при ошибке.
-        """
         if not args:
             print("touch: missing file operand")
             return False
@@ -244,15 +245,16 @@ class Shell:
         )
         return True
 
+    """Удалить пустую директорию.
+
+            Args:
+                args: Список аргументов.
+
+            Returns:
+                True при успехе, False при ошибке.
+            """
     def cmd_rmdir(self, args: List[str]) -> bool:
-        """Удалить пустую директорию.
 
-        Args:
-            args: Список аргументов.
-
-        Returns:
-            True при успехе, False при ошибке.
-        """
         if not args:
             print("rmdir: missing operand")
             return False
