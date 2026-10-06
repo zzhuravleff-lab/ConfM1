@@ -1,6 +1,7 @@
 """Виртуальная файловая система (VFS).
 
 Этап 3. Загрузка VFS из XML-файла в память.
+Этап 4. Разрешение относительных путей.
 """
 
 from __future__ import annotations
@@ -33,7 +34,7 @@ class VfsNode:
     children: Dict[str, "VfsNode"] = field(default_factory=dict)
 
     def list_children(self) -> List[str]:
-        """Вернуть имена дочерних узлов, отсортированные по имени."""
+        """Вернуть имена дочерних узлов, отсортированные."""
         return sorted(self.children.keys())
 
     def get_child(self, name: str) -> Optional["VfsNode"]:
@@ -43,12 +44,7 @@ class VfsNode:
 
 @dataclass
 class VirtualFileSystem:
-    """Виртуальная файловая система в памяти.
-
-    Attributes:
-        name: Имя VFS (из атрибута name корневого тега).
-        root: Корневой узел.
-    """
+    """Виртуальная файловая система в памяти."""
 
     name: str
     root: VfsNode
@@ -75,6 +71,52 @@ class VirtualFileSystem:
         parts = [p for p in path.split("/") if p]
         node = self.root
         for part in parts:
+            if not node.is_dir:
+                return None
+            child = node.get_child(part)
+            if child is None:
+                return None
+            node = child
+        return node
+
+    def resolve_path(
+        self,
+        cwd: str,
+        path: str,
+    ) -> Optional[VfsNode]:
+        """Найти узел по пути относительно cwd.
+
+        Поддерживает абсолютные и относительные пути,
+        а также элементы '.' и '..'.
+
+        Args:
+            cwd: Текущая директория (абсолютный путь).
+            path: Путь (абсолютный или относительный).
+
+        Returns:
+            Узел или None, если путь не существует.
+        """
+        if not path:
+            return self.resolve(cwd)
+
+        if path.startswith("/"):
+            parts = [p for p in path.split("/") if p]
+        else:
+            base = [p for p in cwd.split("/") if p]
+            parts = base + [p for p in path.split("/") if p]
+
+        normalized: List[str] = []
+        for part in parts:
+            if part == ".":
+                continue
+            if part == "..":
+                if normalized:
+                    normalized.pop()
+                continue
+            normalized.append(part)
+
+        node = self.root
+        for part in normalized:
             if not node.is_dir:
                 return None
             child = node.get_child(part)
@@ -160,7 +202,7 @@ def _parse_dir(elem: ET.Element, name: str) -> VfsNode:
         name: Имя директории.
 
     Returns:
-        Узел VfsNode, представляющий директорию.
+        Узел VfsNode.
 
     Raises:
         VfsError: Если найдены дублирующиеся имена.
@@ -184,7 +226,20 @@ def _parse_file(elem: ET.Element, name: str) -> VfsNode:
         name: Имя файла.
 
     Returns:
-        Узел VfsNode, представляющий файл.
+        Узел VfsNode.
     """
     content = elem.text if elem.text is not None else ""
     return VfsNode(name=name, is_dir=False, content=content)
+
+
+def empty_vfs(name: str = "my_vfs") -> VirtualFileSystem:
+    """Создать пустую VFS в памяти.
+
+    Args:
+        name: Имя VFS.
+
+    Returns:
+        Пустая VFS с одним корневым узлом.
+    """
+    root = VfsNode(name="/", is_dir=True)
+    return VirtualFileSystem(name=name, root=root)

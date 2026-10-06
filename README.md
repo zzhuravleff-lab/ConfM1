@@ -81,6 +81,90 @@ OSEmulator — эмулятор для языка оболочки ОС.
 неверный корневой тег) — программа завершается
 с кодом 1.
 
+### Этап 4. Основные команды
+
+Реализовано:
+
+- Реальная работа команд `ls` и `cd` с загруженной VFS.
+- Новые команды `echo`, `clear`, `history`.
+- Поддержка относительных путей, а также `.` и `..`.
+- Если VFS не загружена, создаётся пустая VFS в памяти.
+
+## Команды
+
+### `ls [path]`
+
+Вывести содержимое директории или имя файла.
+
+- Без аргумента — текущая директория.
+- Имена через пробел в одну строку (алфавитный порядок).
+- Для файла — имя файла.
+- Ошибка: `ls: cannot access '...': No such file or directory`.
+- Ошибка: `ls: too many arguments`.
+
+Примеры:
+
+```
+my_vfs$ ls
+etc home motd
+my_vfs$ ls /home
+notes.txt readme.txt
+my_vfs$ ls /home/readme.txt
+readme.txt
+```
+
+### `cd [path]`
+
+Сменить текущую директорию.
+
+- Без аргумента — переход в `/`.
+- Поддерживает `.` и `..`.
+- Ошибка: `cd: no such directory: ...`.
+- Ошибка: `cd: not a directory: ...`.
+
+Примеры:
+
+```
+my_vfs$ cd /home
+my_vfs$ pwd_placeholder
+```
+
+### `echo [args...]`
+
+Вывести аргументы через пробел.
+
+- Без аргумента — пустая строка.
+- Переменные не раскрываются.
+
+Примеры:
+
+```
+my_vfs$ echo hello world
+hello world
+my_vfs$ echo $HOME
+$HOME
+```
+
+### `clear`
+
+Очистить экран.
+
+- В стартовом скрипте — **no-op** (ничего не делает).
+
+### `history`
+
+Вывести историю выполненных команд.
+
+- Формат: `   1  ls`.
+- Сама команда `history` включается в вывод.
+- Команды из стартового скрипта тоже попадают в историю.
+- Ошибка: `history: too many arguments`.
+
+## Стартовые скрипты Этапа 4
+
+- `scripts/startup_stage4.txt` — полный прогон всех команд.
+- `.bat`-скрипты: `run_stage4_full.bat`, `run_stage4_history.bat`.
+
 ## Требования
 
 - Python 3.10 или выше.
@@ -122,40 +206,6 @@ python -m unittest discover -s tests
 ```
 
 ## Поддерживаемые команды
-
-### `ls`
-
-На данном этапе команда реализована в виде заглушки.
-
-Примеры:
-
-```
-my_vfs$ ls
-ls: arguments = []
-
-my_vfs$ ls a b c
-ls: arguments = ['a', 'b', 'c']
-
-my_vfs$ ls "my dir"
-ls: arguments = ['my dir']
-```
-
-### `cd`
-
-На данном этапе команда реализована в виде заглушки.
-
-Примеры:
-
-```
-my_vfs$ cd
-cd: arguments = []
-
-my_vfs$ cd a b c
-cd: arguments = ['a', 'b', 'c']
-
-my_vfs$ cd "/home/user dir"
-cd: arguments = ['/home/user dir']
-```
 
 ### `exit`
 
@@ -242,3 +292,5 @@ ls: arguments = []
 | `run_with_broken_vfs.bat` | 3 | Битый XML (ошибка парсинга). |
 | `run_with_bad_format.bat` | 3 | Неверный корневой тег. |
 | `run_vfs_and_script.bat` | 3 | VFS + стартовый скрипт (полный прогон). |
+| `run_stage4_full.bat` | 4 | Полный прогон команд Этапа 4 (`ls`, `cd`, `echo`, `history`). |
+| `run_stage4_history.bat` | 4 | Интерактивная проверка `history`. |

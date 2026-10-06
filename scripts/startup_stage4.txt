@@ -1,0 +1,14 @@
+ls
+ls /
+ls /home
+ls /etc
+ls /home/readme.txt
+cd /home
+ls
+cd ..
+ls
+cd /
+echo hello world
+echo
+history
+exit
