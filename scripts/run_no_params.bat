@@ -1,4 +1,5 @@
 @echo off
 REM Тест: запуск без параметров (интерактивный REPL).
-python "%~dp0..\src\main.py"
+cd /d "%~dp0.."
+python -m src.main
 pause

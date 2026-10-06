@@ -1,4 +1,4 @@
 @echo off
-REM Запуск эмулятора VFS в интерактивном режиме.
-python "%~dp0src\main.py" %*
+REM Запуск эмулятора VFS.
+python -m src.main %*
 pause

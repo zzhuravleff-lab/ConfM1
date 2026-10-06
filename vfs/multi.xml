@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vfs name="multi">
+  <file name="motd">Welcome to multi VFS!</file>
+  <dir name="home">
+    <file name="readme.txt">Hello, world!</file>
+    <file name="notes.txt">Some notes here.</file>
+  </dir>
+  <dir name="etc">
+    <file name="hosts">127.0.0.1 localhost</file>
+  </dir>
+</vfs>

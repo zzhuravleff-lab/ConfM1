@@ -1,0 +1,8 @@
+ls
+ls -la /home
+cd /home
+cd ..
+ls a b c
+ls "with spaces"
+cd "path with spaces"
+exit

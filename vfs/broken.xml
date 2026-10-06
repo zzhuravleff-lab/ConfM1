@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vfs name="broken">
+  <dir name="a">
+    <file name="f.txt">content</file>
+  </dir>

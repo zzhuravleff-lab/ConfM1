@@ -1,4 +1,5 @@
 @echo off
 REM Тест: запуск со стартовым скриптом.
-python "%~dp0..\src\main.py" --script "%~dp0demo.txt"
+cd /d "%~dp0.."
+python -m src.main --script "%~dp0demo.txt"
 pause

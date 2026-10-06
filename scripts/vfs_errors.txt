@@ -1,0 +1,4 @@
+ls
+badcmd
+ls after_error
+exit

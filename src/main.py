@@ -4,14 +4,20 @@
 
 Этап 1: REPL (парсер, команды-заглушки, exit).
 Этап 2: конфигурация (CLI-параметры, стартовый скрипт).
+Этап 3: VFS (загрузка из XML, motd).
 """
 
 import argparse
 import shlex
 import sys
+from pathlib import Path
+from typing import Optional
+
+from src.vfs import VfsError, VirtualFileSystem, load_vfs
 
 VFS_NAME_DEFAULT = "my_vfs"
 EXIT_CODE_OK = 0
+EXIT_CODE_ERROR = 1
 PROMPT_TEMPLATE = "{vfs}$ "
 
 def parse_command(line: str):
@@ -91,7 +97,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--vfs",
         metavar="PATH",
         default=None,
-        help="Путь к физическому расположению VFS.",
+        help="Путь к физическому расположению VFS "
+             "(файл .xml или папка с ним).",
     )
     parser.add_argument(
         "--script",
@@ -108,10 +115,86 @@ def print_debug(args) -> None:
     Args:
         args: Результат разбора argparse.
     """
-    print("=== Debug: emulator parameters ===")
-    print(f"  vfs path    = {args.vfs!r}")
-    print(f"  script path = {args.script!r}")
-    print("===================================")
+    print(f"VFS path = {args.vfs!r}")
+    print(f"Script path = {args.script!r}")
+    print("\n")
+
+
+def print_vfs_info(vfs_obj: Optional[VirtualFileSystem]) -> None:
+    """Вывести информацию о загруженной VFS.
+
+    Args:
+        vfs_obj: Загруженная VFS или None.
+    """
+    if vfs_obj is None:
+        print("VFS: not loaded")
+        return
+    entries = vfs_obj.root.list_children()
+    print(f"VFS: name={vfs_obj.name}, root entries={entries}")
+
+
+def print_motd(vfs_obj: Optional[VirtualFileSystem]) -> None:
+    """Вывести сообщение motd, если оно есть.
+
+    Args:
+        vfs_obj: Загруженная VFS или None.
+    """
+    if vfs_obj is None:
+        return
+    motd = vfs_obj.motd
+    if motd:
+        print(f"motd: {motd.strip()}")
+
+def _find_xml_in_dir(directory: Path) -> Optional[Path]:
+    """Найти XML-файл в директории.
+
+    Приоритет: vfs.xml, затем первый *.xml по алфавиту.
+
+    Args:
+        directory: Путь к директории.
+
+    Returns:
+        Путь к XML-файлу или None, если ничего не найдено.
+    """
+    preferred = directory / "vfs.xml"
+    if preferred.is_file():
+        return preferred
+    xml_files = sorted(directory.glob("*.xml"))
+    if xml_files:
+        return xml_files[0]
+    return None
+
+
+def load_vfs_from_path(path: str) -> Optional[VirtualFileSystem]:
+    """Загрузить VFS из указанного пути.
+
+    Если путь — папка, ищет в ней vfs.xml или первый .xml.
+    Если путь — файл, загружает его напрямую.
+
+    Args:
+        path: Путь к файлу или папке VFS.
+
+    Returns:
+        Объект VirtualFileSystem или None при ошибке.
+    """
+    p = Path(path)
+
+    if p.is_dir():
+        candidate = _find_xml_in_dir(p)
+        if candidate is None:
+            print(f"Error: no XML files found in {path}")
+            return None
+        p = candidate
+
+    if not p.is_file():
+        print(f"Error: VFS path not found: {path}")
+        return None
+
+    try:
+        return load_vfs(str(p))
+    except VfsError as exc:
+        print(f"Error: {exc}")
+        return None
 
 def execute_line(line: str, vfs_name: str, echo: bool = False) -> bool:
     """Выполнить одну строку ввода.
@@ -119,8 +202,7 @@ def execute_line(line: str, vfs_name: str, echo: bool = False) -> bool:
     Args:
         line: Строка ввода.
         vfs_name: Имя VFS для эха.
-        echo: Если True, печатать строку перед выполнением
-            (используется в стартовом скрипте).
+        echo: Если True, печатать строку перед выполнением.
 
     Returns:
         True, если команда выполнена успешно,
@@ -206,6 +288,15 @@ def main() -> None:
     args = parser.parse_args()
 
     print_debug(args)
+
+    vfs_obj: Optional[VirtualFileSystem] = None
+    if args.vfs:
+        vfs_obj = load_vfs_from_path(args.vfs)
+        if vfs_obj is None:
+            sys.exit(EXIT_CODE_ERROR)
+
+    print_vfs_info(vfs_obj)
+    print_motd(vfs_obj)
 
     if args.script:
         run_script(args.script, VFS_NAME_DEFAULT)
